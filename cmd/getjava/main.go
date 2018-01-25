@@ -51,7 +51,6 @@ func main() {
 		fmt.Println(applicationName, version)
 		fmt.Println()
 		fmt.Println("[ABOUT]")
-		fmt.Println()
 		fmt.Println("Utility for downloading Oracle Java packages.")
 		fmt.Println()
 		fmt.Println("[USAGE]")
@@ -64,6 +63,7 @@ func main() {
 
 	if *shouldPrintVersion {
 		fmt.Println(version)
+		os.Exit(0)
 	}
 
 	if len(strings.TrimSpace(*javaPackageUrl)) == 0 {
