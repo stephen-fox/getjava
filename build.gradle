@@ -1,0 +1,87 @@
+apply plugin: 'base'
+
+import static groovy.io.FileType.FILES
+
+version = externalVersion
+
+task buildApplication(type: Task) {
+    description 'Builds the application.'
+    group 'build'
+    doLast {
+        File sourcesDir = file(projectDir.absolutePath + '/cmd/' + project.name)
+        List<String> ldFlags = ['-X main.version=' + version.toString(), '-s', '-w']
+
+        if ('' == targetOs) {
+            if (goBuild(sourcesDir, buildDir, project.name, 'darwin', 'amd64', ldFlags) > 0) {
+                throw new GradleException('Failed to compile the application for macOS')
+            }
+
+            if (goBuild(sourcesDir, buildDir, project.name, 'linux', 'amd64', ldFlags) > 0) {
+                throw new GradleException('Failed to compile the application for Linux')
+            }
+
+            if (goBuild(sourcesDir, buildDir, project.name, 'windows', 'amd64', ldFlags) > 0) {
+                throw new GradleException('Failed to compile the application for Windows')
+            }
+
+            if (markBinariesAsExecutable(project.name, buildDir) > 0) {
+                throw new GradleException("Failed to mark binaries as executable")
+            }
+        } else {
+            if (goBuild(sourcesDir, buildDir, project.name, targetOs, 'amd64', ldFlags) > 0) {
+                throw new GradleException('Failed to compile the application for ' + targetOs)
+            }
+        }
+    }
+}
+
+int goBuild(File sourceCodeDir, File outputDir, String binaryName, String os, String arch, List<String> ldFlags) {
+    List<String> command = ['go', 'build']
+
+    if (!arch?.trim()) {
+        throw new GradleException('Please specify the target arch')
+    }
+
+    if (!os?.trim()) {
+        throw new GradleException('Please specify the target operating system')
+    }
+
+    if (!ldFlags?.isEmpty()) {
+        command.add('-ldflags')
+        command.add(ldFlags.join(' '))
+    }
+
+    String outputPath = outputDir.absolutePath + File.separator + binaryName + '-' + os + '-' + arch
+    if (os == 'windows') {
+        outputPath = outputPath + '.exe'
+    }
+    command.add('-o')
+    command.add(outputPath)
+
+    logger.quiet('Compiling ' + sourceCodeDir.absolutePath + ' for ' + os + ', ' + arch + '...')
+
+    return exec {
+        environment GOARCH: arch, GOOS: os
+        workingDir sourceCodeDir.absolutePath
+        commandLine command
+    }.exitValue
+}
+
+int markBinariesAsExecutable(String nameMatch, File directory) {
+    int exitValue = 0
+    String osName = System.getProperty('os.name').toLowerCase()
+    if (osName.contains('linux') || osName.contains('mac')) {
+        directory.eachFileRecurse(FILES) {
+            File someFile = file(it)
+            if (someFile.name.contains(nameMatch)) {
+                exitValue = exec {
+                    commandLine 'chmod', '-v', '+x', someFile.absolutePath
+                }.exitValue
+            }
+        }
+    } else if (osName.contains('windows')) {
+        logger.quiet('[WARN] Unable to set Linux and macOS binaries as executable')
+    }
+
+    return exitValue
+}
