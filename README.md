@@ -21,7 +21,7 @@ You can also view application help and usage examples by running:
 $ getjava -h
 ```
 
-## Where do I download it?
+## Where do I download it from?
 Check out the tags section.
 
 ## How do I build it?
